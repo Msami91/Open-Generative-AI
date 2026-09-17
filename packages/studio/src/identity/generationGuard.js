@@ -1,5 +1,6 @@
 import { buildGenerationPreflight, assertPreflightApproved } from "./preflight.js";
 import { identityUrlsForGeneration } from "./referenceAuthority.js";
+import { createPreflightFingerprint, isApprovalCurrent } from "./preflightFingerprint.js";
 
 /**
  * Fail-closed identity guard for provider-bound generation requests.
@@ -13,11 +14,25 @@ export function authorizeIdentityGeneration({
   references = [],
   model = null,
   operation = "generation",
+  prompt = "",
+  settings = {},
   estimatedCost = null,
   currency = null,
   approval = false,
+  approvedFingerprint = null,
   minIdentityReferences = 1,
 } = {}) {
+  const currentFingerprint = createPreflightFingerprint({
+    identityId,
+    references,
+    model,
+    operation,
+    prompt,
+    settings,
+    estimatedCost,
+    currency,
+  });
+
   const preflight = buildGenerationPreflight({
     identityId,
     references,
@@ -29,9 +44,14 @@ export function authorizeIdentityGeneration({
   });
 
   assertPreflightApproved(preflight, approval);
+  if (!isApprovalCurrent(approvedFingerprint, currentFingerprint)) {
+    throw new Error(
+      "Generation inputs changed after approval. Review and approve the current preflight again.",
+    );
+  }
 
   return Object.freeze({
-    preflight,
+    preflight: Object.freeze({ ...preflight, fingerprint: currentFingerprint }),
     identityUrls: Object.freeze(
       identityUrlsForGeneration(references, identityId, {
         min: minIdentityReferences,
