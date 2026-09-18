@@ -115,11 +115,21 @@ function getModelById(id) { return WAN2GP_CATALOG.find(m => m.id === id) || null
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 function readConfig() {
-    if (!fs.existsSync(CONFIG_FILE)) return { url: '' };
-    try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8')); }
-    catch { return { url: '' }; }
+    if (!fs.existsSync(CONFIG_FILE)) return { url: '', connectionMode: 'local' };
+    try {
+        const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+        return {
+            url: parsed.url || '',
+            connectionMode: parsed.connectionMode === 'cloud' ? 'cloud' : 'local',
+        };
+    } catch { return { url: '', connectionMode: 'local' }; }
 }
-function writeConfig(cfg) { fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
+function writeConfig(cfg) {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({
+        url: cfg.url || '',
+        connectionMode: cfg.connectionMode === 'cloud' ? 'cloud' : 'local',
+    }, null, 2));
+}
 function normalizeUrl(url) {
     const value = (url || '').trim().replace(/\/+$/, '');
     if (!value) return '';
@@ -383,8 +393,14 @@ async function generate(params, mainWindow) {
         if (!paidGate.canProvision) throw new Error(paidGate.reason);
     }
 
-    const { url } = readConfig();
+    const { url, connectionMode } = readConfig();
     if (!url) throw new Error('Wan2GP server URL not set. Open Settings → Local Models to configure.');
+    if (connectionMode === 'cloud' && params.cloudRun !== true) {
+        throw new Error('Cloud Wan2GP endpoint requires a paid-run authorization envelope.');
+    }
+    if (connectionMode !== 'cloud' && params.cloudRun === true) {
+        throw new Error('Paid cloud-run authorization cannot be used with a local Wan2GP endpoint.');
+    }
     const base = normalizeUrl(url);
 
     const model = getModelById(params.model);
@@ -473,7 +489,10 @@ function getMainWindow() { return BrowserWindow.getAllWindows()[0] || null; }
 
 function register() {
     ipcMain.handle('wan2gp:get-config',  () => readConfig());
-    ipcMain.handle('wan2gp:set-url',     (_, url) => { writeConfig({ url: normalizeUrl(url) }); return { ok: true }; });
+    ipcMain.handle('wan2gp:set-url',     (_, url, connectionMode = 'local') => {
+        writeConfig({ url: normalizeUrl(url), connectionMode });
+        return { ok: true };
+    });
     ipcMain.handle('wan2gp:probe',       (_, url) => probe(url));
     ipcMain.handle('wan2gp:list-models', () => listModels());
     ipcMain.handle('wan2gp:generate',    (_, params) => generate(params, getMainWindow()));
