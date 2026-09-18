@@ -108,6 +108,23 @@ function createEpisode02DryRun({
       endpointUrl: normalizedEndpoint,
       approvedCloudRunFingerprint: cloudRunFingerprint,
     }),
+    providerPayload: Object.freeze({
+      model: BENCHMARK.model,
+      prompt: prompt.trim(),
+      aspect_ratio: BENCHMARK.aspectRatio,
+      duration: BENCHMARK.durationSeconds,
+      resolution: BENCHMARK.resolution,
+      cloudRun: true,
+      benchmarkId: BENCHMARK.id,
+      generationFingerprint,
+      generationApproved: true,
+      approvedGenerationFingerprint: generationFingerprint,
+      costEstimate,
+      paidRunApproved: true,
+      approvedEstimateFingerprint: costFingerprint,
+      cloudProvider: provider,
+      approvedCloudRunFingerprint: cloudRunFingerprint,
+    }),
   });
 }
 
