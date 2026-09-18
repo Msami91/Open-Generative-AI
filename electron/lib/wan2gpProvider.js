@@ -10,7 +10,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const { withWan2gpAvailability } = require('./wan2gpModelAvailability');
-const { buildPaidRunGate } = require('./cloudCostGuard');
+const { authorizePaidCloudRun } = require('./cloudRunAuthorization');
 
 const DATA_DIR = path.join(app.getPath('userData'), 'local-ai');
 const CONFIG_FILE = path.join(DATA_DIR, 'wan2gp.json');
@@ -387,15 +387,6 @@ async function generate(params, mainWindow) {
     // Cloud Wan2GP runs are a billing trust boundary. The renderer cannot
     // bypass this by calling IPC directly: the main process validates the
     // exact estimate fingerprint before any provider-bound request is sent.
-    if (params.cloudRun === true) {
-        const paidGate = buildPaidRunGate({
-            estimate: params.costEstimate,
-            approved: params.paidRunApproved,
-            approvedEstimateFingerprint: params.approvedEstimateFingerprint,
-        });
-        if (!paidGate.canProvision) throw new Error(paidGate.reason);
-    }
-
     const { url, connectionMode } = readConfig();
     if (!url) throw new Error('Wan2GP server URL not set. Open Settings → Local Models to configure.');
     if (connectionMode === 'cloud' && params.cloudRun !== true) {
@@ -407,6 +398,22 @@ async function generate(params, mainWindow) {
     const base = normalizeUrl(url);
 
     const model = getModelById(params.model);
+    if (connectionMode === 'cloud') {
+        authorizePaidCloudRun({
+            benchmarkId: params.benchmarkId,
+            generationFingerprint: params.generationFingerprint,
+            generationApproved: params.generationApproved,
+            approvedGenerationFingerprint: params.approvedGenerationFingerprint,
+            estimate: params.costEstimate,
+            paidRunApproved: params.paidRunApproved,
+            approvedEstimateFingerprint: params.approvedEstimateFingerprint,
+            provider: params.cloudProvider,
+            model: params.model,
+            endpointMode: connectionMode,
+            endpointUrl: base,
+            approvedCloudRunFingerprint: params.approvedCloudRunFingerprint,
+        });
+    }
     if (!model) throw new Error(`Unknown Wan2GP model: ${params.model}`);
 
     const send = (data) => mainWindow?.webContents.send('local-ai:progress', data);
