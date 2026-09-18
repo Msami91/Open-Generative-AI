@@ -5,6 +5,14 @@ import toast, { Toaster } from "react-hot-toast";
 import { generateImage, generateI2I, uploadFile } from "../muapi.js";
 import { formatErrorMessage } from "../utils/formatError.js";
 import { scopedPersistKey, migrateLegacyPersistKey } from "../persistKey.js";
+import {
+  authorizeIdentityGeneration,
+  createPreflightFingerprint,
+  createReference,
+  REFERENCE_APPROVAL,
+  REFERENCE_ROLES,
+  SAMI_01,
+} from "../identity/index.js";
 import DrawModal from "./DrawModal.jsx";
 import ModelParameterControls from "./ModelParameterControls.jsx";
 import MobileGenerationActions, {
@@ -1006,6 +1014,10 @@ export default function ImageStudio({
   const [prompt, setPrompt] = useState("");
   const [uploadedImageUrls, setUploadedImageUrls] = useState([]);
   const [swapImageUrl, setSwapImageUrl] = useState(null);
+  // Face-swap is identity-sensitive. A selected swap image is never trusted
+  // implicitly; it is explicitly classified as the locked SAMI-01 identity.
+  const [swapIdentityApproved, setSwapIdentityApproved] = useState(false);
+  const [swapApprovedFingerprint, setSwapApprovedFingerprint] = useState(null);
   const [uploadHistory, setUploadHistory] = useState([]); // persisted reference images history
 
   // ── UI state ────────────────────────────────────────────────────────────
@@ -1367,6 +1379,55 @@ export default function ImageStudio({
         alert(copy.errors.uploadSwapFaceFirst);
         return;
       }
+      if (modelInfo?.swapField && swapImageUrl) {
+        const identityReferences = [
+          createReference({
+            id: "sami-01-face-swap",
+            url: swapImageUrl,
+            role: REFERENCE_ROLES.IDENTITY,
+            identityId: SAMI_01.id,
+            approval: REFERENCE_APPROVAL.APPROVED,
+            source: "explicit-face-swap-selection",
+            label: "SAMI-01 face swap",
+          }),
+        ];
+        const identitySettings = {
+          aspect_ratio: selectedAr,
+          quality: selectedQuality,
+          effect: selectedEffect,
+          batchSize,
+          modelParameterValues,
+          sourceImages: uploadedImageUrls,
+        };
+        const fingerprint = createPreflightFingerprint({
+          identityId: SAMI_01.id,
+          references: identityReferences,
+          model: selectedModelId,
+          operation: "face-swap",
+          prompt: prompt.trim(),
+          settings: identitySettings,
+        });
+        try {
+          authorizeIdentityGeneration({
+            identityId: SAMI_01.id,
+            references: identityReferences,
+            model: selectedModelId,
+            operation: "face-swap",
+            prompt: prompt.trim(),
+            settings: identitySettings,
+            approval: swapIdentityApproved,
+            approvedFingerprint: swapApprovedFingerprint,
+          });
+        } catch (identityError) {
+          const approved = window.confirm(
+            `SAMI-01 identity preflight\n\nModel: ${selectedModelId}\nOperation: face-swap\nIdentity reference: 1 approved\n\nApprove this exact generation configuration?`,
+          );
+          if (!approved) return;
+          setSwapIdentityApproved(true);
+          setSwapApprovedFingerprint(fingerprint);
+          return;
+        }
+      }
     } else {
       const imageCapability = getModelMediaCapabilities(selectedVariant?.model).image;
       if (uploadedImageUrls.length > 0 && imageCapability.maxItems === 0) {
@@ -1656,8 +1717,16 @@ export default function ImageStudio({
                 <UploadButton
                   apiKey={apiKey}
                   maxImages={1}
-                  onSelect={({ urls }) => setSwapImageUrl(urls[0] || null)}
-                  onClear={() => setSwapImageUrl(null)}
+                  onSelect={({ urls }) => {
+                    setSwapImageUrl(urls[0] || null);
+                    setSwapIdentityApproved(false);
+                    setSwapApprovedFingerprint(null);
+                  }}
+                  onClear={() => {
+                    setSwapImageUrl(null);
+                    setSwapIdentityApproved(false);
+                    setSwapApprovedFingerprint(null);
+                  }}
                   initialUrls={swapImageUrl ? [swapImageUrl] : []}
                   label={copy.promptBar.swapFaceLabel}
                   copy={copy}
