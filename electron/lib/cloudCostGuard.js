@@ -25,6 +25,8 @@ function estimateBenchmarkCost({
   });
 }
 
+const crypto = require("crypto");
+
 function estimateFingerprint(estimate) {
   const snapshot = [
     estimate.billableMinutes,
@@ -35,7 +37,7 @@ function estimateFingerprint(estimate) {
     estimate.totalSar,
     estimate.usdToSar,
   ];
-  return Buffer.from(JSON.stringify(snapshot)).toString("base64url");
+  return "cost-" + crypto.createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 
 function buildPaidRunGate({ estimate, approved = false, approvedEstimateFingerprint = null } = {}) {
