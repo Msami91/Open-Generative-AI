@@ -3,7 +3,7 @@
 
 const crypto = require("crypto");
 const { estimateBenchmarkCost, estimateFingerprint } = require("./cloudCostGuard");
-const { createCloudRunFingerprint, authorizePaidCloudRun } = require("./cloudRunAuthorization");
+const { createCloudRunFingerprint } = require("./cloudRunAuthorization");
 
 const BENCHMARK = Object.freeze({
   id: "sami-01-s01-e02-choice",
@@ -97,11 +97,11 @@ function createEpisode02DryRun({
       cloudRun: true,
       benchmarkId: BENCHMARK.id,
       generationFingerprint,
-      generationApproved: true,
-      approvedGenerationFingerprint: generationFingerprint,
+      generationApproved: false,
+      approvedGenerationFingerprint: null,
       costEstimate,
-      paidRunApproved: true,
-      approvedEstimateFingerprint: costFingerprint,
+      paidRunApproved: false,
+      approvedEstimateFingerprint: null,
       cloudProvider: provider,
       model: BENCHMARK.model,
       endpointMode: "cloud",
@@ -117,11 +117,11 @@ function createEpisode02DryRun({
       cloudRun: true,
       benchmarkId: BENCHMARK.id,
       generationFingerprint,
-      generationApproved: true,
-      approvedGenerationFingerprint: generationFingerprint,
+      generationApproved: false,
+      approvedGenerationFingerprint: null,
       costEstimate,
-      paidRunApproved: true,
-      approvedEstimateFingerprint: costFingerprint,
+      paidRunApproved: false,
+      approvedEstimateFingerprint: null,
       cloudProvider: provider,
       approvedCloudRunFingerprint: cloudRunFingerprint,
     }),
@@ -132,20 +132,32 @@ function verifyEpisode02DryRun(plan) {
   if (!plan?.dryRun || plan.networkCalls !== 0 || plan.providerCalls !== 0) {
     throw new Error("Only a zero-network dry-run plan can be verified here.");
   }
-  const a = plan.authorizationEnvelope;
-  return authorizePaidCloudRun({
-    benchmarkId: a.benchmarkId,
-    generationFingerprint: a.generationFingerprint,
-    generationApproved: a.generationApproved,
-    approvedGenerationFingerprint: a.approvedGenerationFingerprint,
-    estimate: a.costEstimate,
-    paidRunApproved: a.paidRunApproved,
-    approvedEstimateFingerprint: a.approvedEstimateFingerprint,
-    provider: a.cloudProvider,
-    model: a.model,
-    endpointMode: a.endpointMode,
-    endpointUrl: a.endpointUrl,
-    approvedCloudRunFingerprint: a.approvedCloudRunFingerprint,
+  const expectedCostFingerprint = estimateFingerprint(plan.costEstimate);
+  if (expectedCostFingerprint !== plan.costFingerprint) {
+    throw new Error("Dry-run cost fingerprint mismatch.");
+  }
+  const expectedCloudRunFingerprint = createCloudRunFingerprint({
+    benchmarkId: plan.benchmark.id,
+    generationFingerprint: plan.generationFingerprint,
+    estimateFingerprint: plan.costFingerprint,
+    provider: plan.authorizationEnvelope.cloudProvider,
+    model: plan.benchmark.model,
+    endpointMode: plan.authorizationEnvelope.endpointMode,
+    endpointUrl: plan.authorizationEnvelope.endpointUrl,
+  });
+  if (expectedCloudRunFingerprint !== plan.cloudRunFingerprint) {
+    throw new Error("Dry-run cloud fingerprint mismatch.");
+  }
+  if (plan.authorizationEnvelope.generationApproved || plan.authorizationEnvelope.paidRunApproved) {
+    throw new Error("Dry-run must never synthesize user approvals.");
+  }
+  return Object.freeze({
+    structurallyValid: true,
+    canRunPaid: false,
+    requiresStoryboardReview: true,
+    requiresMusicReview: true,
+    requiresGenerationApproval: true,
+    requiresCostApproval: true,
   });
 }
 
