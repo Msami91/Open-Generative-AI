@@ -25,14 +25,30 @@ function estimateBenchmarkCost({
   });
 }
 
-function buildPaidRunGate({ estimate, approved = false } = {}) {
+function estimateFingerprint(estimate) {
+  const snapshot = [
+    estimate.billableMinutes,
+    estimate.computeUsd,
+    estimate.storageUsd,
+    estimate.egressUsd,
+    estimate.totalUsd,
+    estimate.totalSar,
+    estimate.usdToSar,
+  ];
+  return Buffer.from(JSON.stringify(snapshot)).toString("base64url");
+}
+
+function buildPaidRunGate({ estimate, approved = false, approvedEstimateFingerprint = null } = {}) {
   if (!estimate || !Number.isFinite(estimate.totalUsd)) throw new Error("A valid estimate is required.");
+  const fingerprint = estimateFingerprint(estimate);
+  const approvalCurrent = approved === true && approvedEstimateFingerprint === fingerprint;
   return Object.freeze({
-    approved: approved === true,
-    canProvision: approved === true,
+    approved: approvalCurrent,
+    canProvision: approvalCurrent,
     estimate,
-    reason: approved === true ? null : "Explicit paid-run approval required before provisioning.",
+    estimateFingerprint: fingerprint,
+    reason: approvalCurrent ? null : "Explicit approval for this exact cost estimate is required before provisioning.",
   });
 }
 
-module.exports = { estimateBenchmarkCost, buildPaidRunGate, USD_TO_SAR_PEG };
+module.exports = { estimateBenchmarkCost, estimateFingerprint, buildPaidRunGate, USD_TO_SAR_PEG };
