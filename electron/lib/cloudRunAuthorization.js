@@ -32,6 +32,12 @@ function createCloudRunFingerprint({
     if (typeof value !== "string" || !value.trim()) throw new Error(`${name} is required.`);
   }
   if (endpointMode !== "cloud") throw new Error("Paid cloud authorization requires endpointMode=cloud.");
+  let endpoint;
+  try { endpoint = new URL(String(endpointUrl || "").trim()); }
+  catch { throw new Error("A valid cloud endpoint URL is required."); }
+  if (endpoint.protocol !== "https:") throw new Error("Cloud run authorization requires HTTPS.");
+  if (endpoint.username || endpoint.password) throw new Error("Cloud endpoint must not embed credentials.");
+  const normalizedEndpoint = endpoint.toString().replace(/\/+$/, "");
   return `cloudrun-${hash({
     benchmarkId,
     generationFingerprint,
@@ -39,7 +45,7 @@ function createCloudRunFingerprint({
     provider,
     model,
     endpointMode,
-    endpointUrl: String(endpointUrl || "").trim().replace(/\/+$/, ""),
+    endpointUrl: normalizedEndpoint,
   })}`;
 }
 
