@@ -268,8 +268,11 @@ async function probe(url) {
 // We expose those as a stable HTTP URL the renderer can preview AND stash the
 // raw path for generate() to feed back into Gradio's file descriptor.
 async function uploadFile({ name, type, bytes }) {
-    const { url } = readConfig();
+    const { url, connectionMode } = readConfig();
     if (!url) throw new Error('Wan2GP server URL not set. Open Settings → Local Models to configure.');
+    if (connectionMode === 'cloud') {
+        throw new Error('Cloud uploads are disabled until the exact paid benchmark run is approved.');
+    }
     const base = normalizeUrl(url);
 
     if (!bytes || !bytes.length) throw new Error('Empty file payload');
