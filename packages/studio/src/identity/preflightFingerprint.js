@@ -15,14 +15,19 @@ function stable(value) {
 }
 
 function hashString(input) {
-  // FNV-1a 32-bit is sufficient here: this is a stale-approval guard, not a
-  // cryptographic identity primitive.
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  // Renderer-safe 128-bit composite hash. This is an approval-integrity guard,
+  // not a password primitive; using four independent FNV-1a lanes makes
+  // accidental/stale collisions materially less plausible than the old 32-bit lane.
+  const seeds = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35];
+  return seeds.map((seed, lane) => {
+    let hash = seed >>> 0;
+    for (let index = 0; index < input.length; index += 1) {
+      hash ^= input.charCodeAt(index) + lane * 0x9e37;
+      hash = Math.imul(hash, 0x01000193);
+      hash ^= hash >>> 13;
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }).join("");
 }
 
 export function createPreflightFingerprint({
