@@ -848,6 +848,8 @@ export default function VideoStudio({
   // ── generation / canvas ──
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState(null);
+  const [episode02DryRunResult, setEpisode02DryRunResult] = useState(null);
+  const [episode02DryRunning, setEpisode02DryRunning] = useState(false);
   const [fullscreenUrl, setFullscreenUrl] = useState(null);
   const [canvasUrl, setCanvasUrl] = useState(null);
   const [canvasModel, setCanvasModel] = useState(null);
@@ -2077,6 +2079,54 @@ export default function VideoStudio({
     setCanvasModel(model);
     setShowCanvas(true);
   }, []);
+
+  // ── SAMI-01 Episode 02 zero-network benchmark ────────────────────────────
+  const handleEpisode02DryRun = useCallback(async () => {
+    if (!window?.localAI?.benchmark?.episode02DryRun) {
+      toast.error("Episode 02 dry-run is available in the Electron app only.");
+      return;
+    }
+    const trimmed = prompt.trim();
+    if (!trimmed) {
+      toast.error("Enter the Episode 02 prompt before running the dry-run.");
+      return;
+    }
+    if (uploadedImageUrls.length < 1) {
+      toast.error("Add at least one SAMI-01 identity reference before the dry-run.");
+      return;
+    }
+
+    setEpisode02DryRunning(true);
+    setEpisode02DryRunResult(null);
+    try {
+      // IDs are derived from the current renderer references only for the
+      // zero-network benchmark snapshot. The dry-run never uploads media.
+      const identityReferenceIds = uploadedImageUrls.map((url, index) =>
+        `sami-01-ref-${index + 1}-${String(url).length}`
+      );
+      const result = await window.localAI.benchmark.episode02DryRun({
+        identityReferenceIds,
+        prompt: trimmed,
+        provider: "dry-run-cloud",
+        endpointUrl: "https://dry-run.invalid",
+        hourlyGpuUsd: 0,
+        runtimeMinutes: 1,
+        startupMinutes: 0,
+        storageUsd: 0,
+        egressUsd: 0,
+      });
+      if (!result?.dryRun || result.networkCalls !== 0 || result.providerCalls !== 0) {
+        throw new Error("Episode 02 dry-run violated the zero-network contract.");
+      }
+      setEpisode02DryRunResult(result);
+      toast.success("Episode 02 dry-run verified — zero network / zero provider calls.");
+    } catch (error) {
+      setEpisode02DryRunResult(null);
+      toast.error(formatErrorMessage(error, "Episode 02 dry-run failed."));
+    } finally {
+      setEpisode02DryRunning(false);
+    }
+  }, [prompt, uploadedImageUrls]);
 
   // ── generate ──────────────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
@@ -3393,6 +3443,27 @@ export default function VideoStudio({
                 </button>
               )}
             </PromptControls>
+
+            {/* SAMI-01 Episode 02 — dry-run only; never calls a provider */}
+            {window?.localAI?.benchmark?.episode02DryRun && (
+              <button
+                type="button"
+                onClick={handleEpisode02DryRun}
+                disabled={episode02DryRunning || generating || mediaUploading}
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-semibold text-white/70 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Validate the SAMI-01 Episode 02 authorization path without network or GPU spend"
+              >
+                {episode02DryRunning ? "Checking E02…" : "E02 Dry Run · 0 cost"}
+              </button>
+            )}
+            {episode02DryRunResult && (
+              <span
+                className="text-[10px] font-semibold text-emerald-300/80"
+                title={episode02DryRunResult.cloudRunFingerprint}
+              >
+                E02 verified · 0 network · 0 provider
+              </span>
+            )}
 
             {/* Generate button */}
             <PromptAction
