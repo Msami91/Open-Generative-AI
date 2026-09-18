@@ -125,10 +125,16 @@ function readConfig() {
     } catch { return { url: '', connectionMode: 'local' }; }
 }
 function writeConfig(cfg) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({
+    const next = {
         url: cfg.url || '',
         connectionMode: cfg.connectionMode === 'cloud' ? 'cloud' : 'local',
-    }, null, 2));
+    };
+    const tmp = `${CONFIG_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(next, null, 2), { mode: 0o600 });
+    fs.renameSync(tmp, CONFIG_FILE);
+    try { fs.chmodSync(CONFIG_FILE, 0o600); } catch { /* best effort on Windows */ }
+    fnResolutionCache.clear();
+    uploadedFiles.clear();
 }
 function normalizeUrl(url, { requireHttps = false } = {}) {
     const value = (url || '').trim().replace(/\/+$/, '');
