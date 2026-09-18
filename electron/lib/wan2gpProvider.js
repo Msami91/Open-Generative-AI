@@ -130,7 +130,7 @@ function writeConfig(cfg) {
         connectionMode: cfg.connectionMode === 'cloud' ? 'cloud' : 'local',
     }, null, 2));
 }
-function normalizeUrl(url) {
+function normalizeUrl(url, { requireHttps = false } = {}) {
     const value = (url || '').trim().replace(/\/+$/, '');
     if (!value) return '';
     let parsed;
@@ -138,6 +138,9 @@ function normalizeUrl(url) {
     catch { throw new Error('Wan2GP URL must be a valid absolute URL.'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) {
         throw new Error('Wan2GP URL must use http or https.');
+    }
+    if (requireHttps && parsed.protocol !== 'https:') {
+        throw new Error('Cloud Wan2GP endpoints must use HTTPS.');
     }
     if (parsed.username || parsed.password) {
         throw new Error('Wan2GP URL must not contain embedded credentials.');
@@ -395,7 +398,7 @@ async function generate(params, mainWindow) {
     if (connectionMode !== 'cloud' && params.cloudRun === true) {
         throw new Error('Paid cloud-run authorization cannot be used with a local Wan2GP endpoint.');
     }
-    const base = normalizeUrl(url);
+    const base = normalizeUrl(url, { requireHttps: connectionMode === 'cloud' });
 
     const model = getModelById(params.model);
     if (connectionMode === 'cloud') {
@@ -500,7 +503,7 @@ function getMainWindow() { return BrowserWindow.getAllWindows()[0] || null; }
 function register() {
     ipcMain.handle('wan2gp:get-config',  () => readConfig());
     ipcMain.handle('wan2gp:set-url',     (_, url, connectionMode = 'local') => {
-        writeConfig({ url: normalizeUrl(url), connectionMode });
+        writeConfig({ url: normalizeUrl(url, { requireHttps: connectionMode === 'cloud' }), connectionMode });
         return { ok: true };
     });
     ipcMain.handle('wan2gp:probe',       (_, url) => probe(url));
