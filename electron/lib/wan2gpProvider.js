@@ -11,6 +11,7 @@ const http = require('http');
 const https = require('https');
 const { withWan2gpAvailability } = require('./wan2gpModelAvailability');
 const { authorizePaidCloudRun } = require('./cloudRunAuthorization');
+const { authorizeCreativeReview } = require('./creativeReviewGuard');
 
 const DATA_DIR = path.join(app.getPath('userData'), 'local-ai');
 const CONFIG_FILE = path.join(DATA_DIR, 'wan2gp.json');
@@ -407,6 +408,13 @@ async function generate(params, mainWindow) {
     const model = getModelById(params.model);
     if (!model) throw new Error(`Unknown Wan2GP model: ${params.model}`);
     if (connectionMode === 'cloud') {
+        authorizeCreativeReview({
+            episodeId: params.benchmarkId,
+            storyboard: params.storyboard,
+            musicPlan: params.musicPlan,
+            approved: params.creativeReviewApproved,
+            approvedCreativeFingerprint: params.approvedCreativeFingerprint,
+        });
         authorizePaidCloudRun({
             benchmarkId: params.benchmarkId,
             generationFingerprint: params.generationFingerprint,
