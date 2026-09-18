@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, dialog } = require('electron');
 const path = require('path');
 const { register: registerLocalInference } = require('./lib/localInference');
 const { register: registerWan2gp } = require('./lib/wan2gpProvider');
+const { registerEpisode02DryRun } = require('./lib/episode02DryRunIpc');
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught exception:', err);
@@ -73,6 +74,7 @@ app.whenReady().then(() => {
     try {
         registerLocalInference();
         registerWan2gp();
+        registerEpisode02DryRun();
     } catch (err) {
         console.error('Failed to register local-ai/wan2gp handlers:', err);
         dialog.showErrorBox(
