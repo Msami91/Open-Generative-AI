@@ -28,6 +28,15 @@ function buildWan2gpCloudDeployment({
   if (!Number.isFinite(autoStopMinutes) || autoStopMinutes < 1) {
     throw new Error("Auto-stop must be at least one minute.");
   }
+  let normalizedEndpoint = "";
+  if (endpointUrl) {
+    let parsed;
+    try { parsed = new URL(String(endpointUrl).trim()); }
+    catch { throw new Error("Cloud endpoint must be a valid absolute URL."); }
+    if (parsed.protocol !== "https:") throw new Error("Cloud endpoint must use HTTPS.");
+    if (parsed.username || parsed.password) throw new Error("Cloud endpoint must not embed credentials.");
+    normalizedEndpoint = parsed.toString().replace(/\/+$/, "");
+  }
 
   return Object.freeze({
     engine: "Wan2GP",
@@ -35,7 +44,7 @@ function buildWan2gpCloudDeployment({
     gpuProfile,
     gpu,
     hourlyGpuUsd,
-    endpointUrl: String(endpointUrl || "").trim().replace(/\/+$/, ""),
+    endpointUrl: normalizedEndpoint,
     persistentStorageGb,
     autoStopMinutes,
     billingGuard: Object.freeze({
