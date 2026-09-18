@@ -10,6 +10,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const { withWan2gpAvailability } = require('./wan2gpModelAvailability');
+const { buildPaidRunGate } = require('./cloudCostGuard');
 
 const DATA_DIR = path.join(app.getPath('userData'), 'local-ai');
 const CONFIG_FILE = path.join(DATA_DIR, 'wan2gp.json');
@@ -369,6 +370,19 @@ function resolveOutputUrl(base, output) {
 
 async function generate(params, mainWindow) {
     if (!params || typeof params !== 'object') throw new Error('Wan2GP generation parameters are required.');
+
+    // Cloud Wan2GP runs are a billing trust boundary. The renderer cannot
+    // bypass this by calling IPC directly: the main process validates the
+    // exact estimate fingerprint before any provider-bound request is sent.
+    if (params.cloudRun === true) {
+        const paidGate = buildPaidRunGate({
+            estimate: params.costEstimate,
+            approved: params.paidRunApproved,
+            approvedEstimateFingerprint: params.approvedEstimateFingerprint,
+        });
+        if (!paidGate.canProvision) throw new Error(paidGate.reason);
+    }
+
     const { url } = readConfig();
     if (!url) throw new Error('Wan2GP server URL not set. Open Settings → Local Models to configure.');
     const base = normalizeUrl(url);
