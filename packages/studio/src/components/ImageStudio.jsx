@@ -1279,6 +1279,9 @@ export default function ImageStudio({
       setUploadedImageUrls((urls) => urls.slice(0, maxImages));
     }
     setSwapImageUrl(null);
+    setSwapIdentityReferenceApproved(false);
+    setSwapGenerationApproved(false);
+    setSwapApprovedFingerprint(null);
     applySelectedVariant(variant, mode, family);
   }, [applySelectedVariant]);
 
@@ -1353,6 +1356,10 @@ export default function ImageStudio({
     setCurrentImageUrl(null);
     setPrompt("");
     setUploadedImageUrls([]);
+    setSwapImageUrl(null);
+    setSwapIdentityReferenceApproved(false);
+    setSwapGenerationApproved(false);
+    setSwapApprovedFingerprint(null);
     setImageMode(false);
     const firstT2I = t2iModels[0];
     const ars = getAspectRatiosForModel(firstT2I.id);
@@ -1433,6 +1440,12 @@ export default function ImageStudio({
             approvedFingerprint: swapApprovedFingerprint,
           });
         } catch (identityError) {
+          const isExpectedApprovalError =
+            identityError?.message === "Explicit user approval is required before generation." ||
+            identityError?.message === "Generation inputs changed after approval. Review and approve the current preflight again.";
+          if (!isExpectedApprovalError) {
+            throw identityError;
+          }
           const approved = window.confirm(
             `SAMI-01 identity preflight\n\nModel: ${selectedModelId}\nOperation: face-swap\nIdentity reference: 1 approved\n\nApprove this exact generation configuration?`,
           );
