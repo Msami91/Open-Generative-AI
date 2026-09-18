@@ -119,7 +119,20 @@ function readConfig() {
     catch { return { url: '' }; }
 }
 function writeConfig(cfg) { fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
-function normalizeUrl(url) { return (url || '').trim().replace(/\/+$/, ''); }
+function normalizeUrl(url) {
+    const value = (url || '').trim().replace(/\/+$/, '');
+    if (!value) return '';
+    let parsed;
+    try { parsed = new URL(value); }
+    catch { throw new Error('Wan2GP URL must be a valid absolute URL.'); }
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Wan2GP URL must use http or https.');
+    }
+    if (parsed.username || parsed.password) {
+        throw new Error('Wan2GP URL must not contain embedded credentials.');
+    }
+    return parsed.toString().replace(/\/+$/, '');
+}
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let activeAbort = null;
@@ -355,6 +368,7 @@ function resolveOutputUrl(base, output) {
 }
 
 async function generate(params, mainWindow) {
+    if (!params || typeof params !== 'object') throw new Error('Wan2GP generation parameters are required.');
     const { url } = readConfig();
     if (!url) throw new Error('Wan2GP server URL not set. Open Settings → Local Models to configure.');
     const base = normalizeUrl(url);
