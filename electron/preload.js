@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('localAI', {
         uploadFile: (payload) => ipcRenderer.invoke('wan2gp:upload-file', payload),
     },
 
+    benchmark: {
+        episode02DryRun: (input) => ipcRenderer.invoke('benchmark:e02:dry-run', input),
+    },
+
     // Progress events — both engines emit on local-ai:progress
     onProgress: (callback) => {
         const listener = (_, data) => callback(data);
