@@ -3445,7 +3445,7 @@ export default function VideoStudio({
             </PromptControls>
 
             {/* SAMI-01 Episode 02 — dry-run only; never calls a provider */}
-            {window?.localAI?.benchmark?.episode02DryRun && (
+            {typeof window !== "undefined" && window.localAI?.benchmark?.episode02DryRun && (
               <button
                 type="button"
                 onClick={handleEpisode02DryRun}
