@@ -401,6 +401,7 @@ async function generate(params, mainWindow) {
     const base = normalizeUrl(url, { requireHttps: connectionMode === 'cloud' });
 
     const model = getModelById(params.model);
+    if (!model) throw new Error(`Unknown Wan2GP model: ${params.model}`);
     if (connectionMode === 'cloud') {
         authorizePaidCloudRun({
             benchmarkId: params.benchmarkId,
@@ -417,7 +418,6 @@ async function generate(params, mainWindow) {
             approvedCloudRunFingerprint: params.approvedCloudRunFingerprint,
         });
     }
-    if (!model) throw new Error(`Unknown Wan2GP model: ${params.model}`);
 
     const send = (data) => mainWindow?.webContents.send('local-ai:progress', data);
     send({ status: 'starting', progress: 0 });
