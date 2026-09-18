@@ -14,7 +14,11 @@ const base = {
 const plan = createEpisode02DryRun(base);
 assert(plan.dryRun === true, "Plan must remain dry-run.");
 assert(plan.networkCalls === 0 && plan.providerCalls === 0, "Dry-run must make zero external calls.");
-assert(verifyEpisode02DryRun(plan).canRun === true, "Exact dry-run envelope must verify.");
+const verification = verifyEpisode02DryRun(plan);
+assert(verification.structurallyValid === true, "Exact dry-run envelope must verify structurally.");
+assert(verification.canRunPaid === false, "Dry-run must never authorize a paid run.");
+assert(plan.authorizationEnvelope.generationApproved === false, "Dry-run must not synthesize generation approval.");
+assert(plan.authorizationEnvelope.paidRunApproved === false, "Dry-run must not synthesize cost approval.");
 
 const promptMutation = createEpisode02DryRun({ ...base, prompt: base.prompt + " Camera pans left." });
 assert(promptMutation.generationFingerprint !== plan.generationFingerprint, "Prompt change must alter generation fingerprint.");
