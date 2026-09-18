@@ -8,7 +8,7 @@ const SUPPORTED_GPU_PROFILES = Object.freeze({
   "rtx-a6000-48gb": Object.freeze({ minVramGb: 48, recommended: false }),
 });
 
-export function buildWan2gpCloudDeployment({
+function buildWan2gpCloudDeployment({
   provider,
   gpuProfile,
   hourlyGpuUsd,
@@ -51,4 +51,4 @@ export function buildWan2gpCloudDeployment({
   });
 }
 
-export { SUPPORTED_GPU_PROFILES };
+module.exports = { buildWan2gpCloudDeployment, SUPPORTED_GPU_PROFILES };
