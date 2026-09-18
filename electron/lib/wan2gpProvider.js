@@ -133,8 +133,8 @@ function writeConfig(cfg) {
     fs.writeFileSync(tmp, JSON.stringify(next, null, 2), { mode: 0o600 });
     fs.renameSync(tmp, CONFIG_FILE);
     try { fs.chmodSync(CONFIG_FILE, 0o600); } catch { /* best effort on Windows */ }
-    fnResolutionCache.clear();
-    uploadedFiles.clear();
+    if (typeof fnResolutionCache !== 'undefined') fnResolutionCache.clear();
+    if (typeof uploadedFiles !== 'undefined') uploadedFiles.clear();
 }
 function normalizeUrl(url, { requireHttps = false } = {}) {
     const value = (url || '').trim().replace(/\/+$/, '');
