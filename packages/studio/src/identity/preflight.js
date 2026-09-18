@@ -19,6 +19,9 @@ export function buildGenerationPreflight({
   if (requireIdentity && !profile) {
     throw new Error("A known locked identity profile must be selected.");
   }
+  if (requireIdentity && profile.status !== "locked") {
+    throw new Error("Identity-aware generation requires a locked identity profile.");
+  }
 
   const approvedIdentityReferences = requireIdentity
     ? assertApprovedIdentityReferences(references, identityId)
