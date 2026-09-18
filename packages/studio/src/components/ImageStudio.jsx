@@ -1016,7 +1016,8 @@ export default function ImageStudio({
   const [swapImageUrl, setSwapImageUrl] = useState(null);
   // Face-swap is identity-sensitive. A selected swap image is never trusted
   // implicitly; it is explicitly classified as the locked SAMI-01 identity.
-  const [swapIdentityApproved, setSwapIdentityApproved] = useState(false);
+  const [swapIdentityReferenceApproved, setSwapIdentityReferenceApproved] = useState(false);
+  const [swapGenerationApproved, setSwapGenerationApproved] = useState(false);
   const [swapApprovedFingerprint, setSwapApprovedFingerprint] = useState(null);
   const [uploadHistory, setUploadHistory] = useState([]); // persisted reference images history
 
@@ -1386,7 +1387,9 @@ export default function ImageStudio({
             url: swapImageUrl,
             role: REFERENCE_ROLES.IDENTITY,
             identityId: SAMI_01.id,
-            approval: REFERENCE_APPROVAL.APPROVED,
+            approval: swapIdentityReferenceApproved
+              ? REFERENCE_APPROVAL.APPROVED
+              : REFERENCE_APPROVAL.PENDING,
             source: "explicit-face-swap-selection",
             label: "SAMI-01 face swap",
           }),
@@ -1399,6 +1402,17 @@ export default function ImageStudio({
           modelParameterValues,
           sourceImages: uploadedImageUrls,
         };
+        if (!swapIdentityReferenceApproved) {
+          const referenceApproved = window.confirm(
+            "SAMI-01 identity reference approval\n\nApprove the selected original face image as an IDENTITY reference for SAMI-01?\n\nThis approval is separate from generation approval.",
+          );
+          if (!referenceApproved) return;
+          setSwapIdentityReferenceApproved(true);
+          setSwapGenerationApproved(false);
+          setSwapApprovedFingerprint(null);
+          return;
+        }
+
         const fingerprint = createPreflightFingerprint({
           identityId: SAMI_01.id,
           references: identityReferences,
@@ -1415,7 +1429,7 @@ export default function ImageStudio({
             operation: "face-swap",
             prompt: prompt.trim(),
             settings: identitySettings,
-            approval: swapIdentityApproved,
+            approval: swapGenerationApproved,
             approvedFingerprint: swapApprovedFingerprint,
           });
         } catch (identityError) {
@@ -1423,7 +1437,7 @@ export default function ImageStudio({
             `SAMI-01 identity preflight\n\nModel: ${selectedModelId}\nOperation: face-swap\nIdentity reference: 1 approved\n\nApprove this exact generation configuration?`,
           );
           if (!approved) return;
-          setSwapIdentityApproved(true);
+          setSwapGenerationApproved(true);
           setSwapApprovedFingerprint(fingerprint);
           return;
         }
@@ -1719,12 +1733,14 @@ export default function ImageStudio({
                   maxImages={1}
                   onSelect={({ urls }) => {
                     setSwapImageUrl(urls[0] || null);
-                    setSwapIdentityApproved(false);
+                    setSwapIdentityReferenceApproved(false);
+                    setSwapGenerationApproved(false);
                     setSwapApprovedFingerprint(null);
                   }}
                   onClear={() => {
                     setSwapImageUrl(null);
-                    setSwapIdentityApproved(false);
+                    setSwapIdentityReferenceApproved(false);
+                    setSwapGenerationApproved(false);
                     setSwapApprovedFingerprint(null);
                   }}
                   initialUrls={swapImageUrl ? [swapImageUrl] : []}
