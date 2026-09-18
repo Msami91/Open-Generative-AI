@@ -16,6 +16,11 @@ const DATA_DIR = path.join(app.getPath('userData'), 'local-ai');
 const CONFIG_FILE = path.join(DATA_DIR, 'wan2gp.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// Endpoint-scoped runtime caches. Declared before config helpers so config
+// writes can safely invalidate them.
+const uploadedFiles = new Map();
+const fnResolutionCache = new Map();
+
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 // `fn` is the *preferred* Gradio api_name Wan2GP exposes via /gradio_api/call/<fn>.
 // Wan2GP builds rename these between versions (and Pinokio packages drop them
@@ -157,15 +162,8 @@ function normalizeUrl(url, { requireHttps = false } = {}) {
 // ─── State ────────────────────────────────────────────────────────────────────
 let activeAbort = null;
 
-// Map of uploaded source URL → { path, url, orig_name } so generate() can
-// rehydrate the Gradio file descriptor when the renderer passes the URL back.
-const uploadedFiles = new Map();
-
-// Per-base cache of resolved api_names. Populated by probe(); consumed by
-// listModels() and generate(). Without this we'd hit FnIndexInferError on
-// every call because Wan2GP's api_name strings drift between releases.
-// Shape: Map<baseUrl, { apiNames: string[], resolved: Map<modelId, string|null> }>
-const fnResolutionCache = new Map();
+// uploadedFiles maps source URLs to Gradio descriptors.
+// fnResolutionCache maps base URLs to discovered api_name resolutions.
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 function httpJson(urlStr, { method = 'GET', body = null, timeoutMs = 5000 } = {}) {
