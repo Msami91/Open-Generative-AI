@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('localAI', {
     // ── Wan2GP engine (remote Gradio server) ───────────────────────────────
     wan2gp: {
         getConfig:  () => ipcRenderer.invoke('wan2gp:get-config'),
-        setUrl:     (url) => ipcRenderer.invoke('wan2gp:set-url', url),
+        setUrl:     (url, connectionMode = 'local') => ipcRenderer.invoke('wan2gp:set-url', url, connectionMode),
         probe:      (url) => ipcRenderer.invoke('wan2gp:probe', url),
         listModels: () => ipcRenderer.invoke('wan2gp:list-models'),
         generate:   (params) => ipcRenderer.invoke('wan2gp:generate', params),
